@@ -1,0 +1,7 @@
+# .gitignore
+output/
+*.key
+*.hex
+.terraform/
+terraform.tfstate*
+.DS_Store
