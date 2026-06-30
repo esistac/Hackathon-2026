@@ -9,48 +9,62 @@ terraform {
 
 provider "docker" {}
 
-# 1. Réseau privé virtuel pour isoler l'architecture
+# 1. Création du réseau privé pour isoler nos conteneurs
 resource "docker_network" "streaming_net" {
   name = "network_zero_trust"
 }
 
-# 2. Conteneur pour le Serveur de Clés Éphémères
+# 2. Build et déploiement du conteneur Key-Server
+resource "docker_image" "key_server_img" {
+  name = "mon-serveur-de-cles:latest"
+  keep_locally = true
+}
+
 resource "docker_container" "key_server" {
-  name  = "serveur_de_cles"
-  image = "mon-serveur-de-cles:latest"
+  name  = "key-server"
+  image = docker_image.key_server_img.image_id
+  
   networks_advanced {
     name = docker_network.streaming_net.name
   }
+
   ports {
     internal = 8080
-    external = 8085
+    external = 8080
   }
-  # Injection sécurisée de la clé AES générée localement
+
+  # On injecte la clé générée en local directement dans le conteneur
   volumes {
     host_path      = "${path.cwd}/enc.key"
-    container_path = "/app/secrets/enc.key"
+    container_path = "/app/enc.key"
   }
 }
 
-# 3. Conteneur pour le Serveur de Diffusion Vidéo (Nginx)
-resource "docker_container" "video_server" {
-  name  = "serveur_video_nginx"
+# 3. Déploiement du conteneur Nginx (Le CDN local)
+resource "docker_container" "nginx_cdn" {
+  name  = "nginx-cdn"
   image = "nginx:alpine"
+  
   networks_advanced {
     name = docker_network.streaming_net.name
   }
+
   ports {
     internal = 80
     external = 8000
   }
-  
-  # Liens vers la configuration et les segments de vidéos chiffrés
+
+  # Montage de la configuration Nginx
   volumes {
     host_path      = "${path.cwd}/nginx.conf"
-    container_path = "/etc/nginx/conf.d/default.conf"
+    container_path = "/etc/nginx/nginx.conf"
   }
+
+  # Montage des fichiers vidéos chiffrés (générés dans output/ par ffmpeg)
   volumes {
     host_path      = "${path.cwd}/output"
     container_path = "/usr/share/nginx/html/video"
   }
+
+  depends_on = [docker_container.key_server]
 }

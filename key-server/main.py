@@ -1,11 +1,11 @@
 from fastapi import FastAPI, HTTPException, status
-from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 import os
 
 app = FastAPI()
 
-# Configuration CORS pour permettre aux navigateurs de requêter l'API
+# Autoriser les requêtes depuis les lecteurs vidéo (CORS)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -13,20 +13,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Liste de simulation des tokens éphémères valides
-VALID_TOKENS = ["token_cyber_2026", "acces_autorise_99"]
+# Simulation du token valide pour le Hackathon
+VALID_TOKEN = "token_cyber_2026"
+KEY_FILE_PATH = "/app/enc.key"
 
 @app.get("/key")
 def get_key(token: str = None):
-    # Logique Zero-Trust : Pas de token valide = Accès instantanément bloqué
-    if not token or token not in VALID_TOKENS:
+    # Logique Zero-Trust : Pas de token ou token invalide = Accès refusé
+    if not token or token != VALID_TOKEN:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, 
-            detail="Accès refusé : Token manquant, invalide ou expiré."
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Accès refusé : Token manquant ou invalide."
         )
     
-    key_path = "/app/secrets/enc.key"
-    if os.path.exists(key_path):
-        return FileResponse(key_path, media_type="application/octet-stream")
-    
-    raise HTTPException(status_code=500, detail="Fichier de clé introuvable sur le serveur.")
+    # Si le token est bon, on vérifie que le fichier de clé existe bien sur le conteneur
+    if not os.path.exists(KEY_FILE_PATH):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Clé introuvable sur le serveur."
+        )
+        
+    return FileResponse(KEY_FILE_PATH, media_type="application/octet-stream")
