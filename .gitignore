@@ -5,3 +5,9 @@ output/
 .terraform/
 terraform.tfstate*
 .DS_Store
+.venv/
+_pycache_/
+*.pyc
+.pytest_cache/
+.cache/
+.env
