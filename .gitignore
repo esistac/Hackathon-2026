@@ -1,4 +1,14 @@
-# .gitignore
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Secrets
+.env
+
+# Fichiers vidéo de test
+*.mp4# .gitignore
 output/
 *.key
 *.hex
